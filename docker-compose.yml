@@ -1,0 +1,188 @@
+version: '3.8'
+
+networks:
+  crypto-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  qdrant_data:
+  redis_data:
+
+services:
+  # ==========================================
+  # 1. VERİTABANLARI VE ALTYAPI
+  # ==========================================
+  
+  # MySQL (Kullanıcı Verileri)
+  mysql:
+    image: mysql:8.0
+    container_name: crypto-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ${DB_NAME:-cryptodb}
+      MYSQL_USER: ${DB_USER:-cryptouser}
+      MYSQL_PASSWORD: ${DB_PASS:-cryptopassword}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - crypto-network
+
+  # Qdrant (RAG Vektör Veritabanı)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: crypto-qdrant
+    restart: always
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - crypto-network
+
+  # Redis (Cache / Oturum Yönetimi)
+  redis:
+    image: redis:alpine
+    container_name: crypto-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - crypto-network
+
+  # Zookeeper (Kafka Bağımlılığı)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: crypto-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - crypto-network
+
+  # Apache Kafka (Event Streaming)
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: crypto-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - crypto-network
+
+  # ==========================================
+  # 2. BACKEND MİKROSERVİSLERİ
+  # ==========================================
+
+  auth-service:
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - DB_HOST=${DB_HOST:-mysql}
+      - DB_USER=${DB_USER:-cryptouser}
+      - DB_PASS=${DB_PASS:-cryptopassword}
+      - DB_NAME=${DB_NAME:-cryptodb}
+      - DB_PORT=${DB_PORT:-3306}
+      - REDIS_HOST=redis
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - crypto-network
+
+  ml-service:
+    build:
+      context: ./backend/ml-service
+      dockerfile: Dockerfile
+    container_name: ml-service
+    restart: always
+    ports:
+      - "8002:8002"
+    environment:
+      - PORT=8002
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      - kafka
+    networks:
+      - crypto-network
+
+  rag-service:
+    build:
+      context: ./backend/rag-service
+      dockerfile: Dockerfile
+    container_name: rag-service
+    restart: always
+    ports:
+      - "8003:8003"
+    environment:
+      - PORT=8003
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      - qdrant
+    networks:
+      - crypto-network
+
+  # ==========================================
+  # 3. API GATEWAY (Port 8000)
+  # ==========================================
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - ML_SERVICE_URL=http://ml-service:8002
+      - RAG_SERVICE_URL=http://rag-service:8003
+    depends_on:
+      - auth-service
+      - ml-service
+      - rag-service
+    networks:
+      - crypto-network
+
+  # ==========================================
+  # 4. FRONTEND (React / Vite - Port 5173)
+  # ==========================================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: crypto-frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api-gateway
+    networks:
+      - crypto-network

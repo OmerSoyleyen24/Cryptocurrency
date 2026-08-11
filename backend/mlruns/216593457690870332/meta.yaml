@@ -1,0 +1,9 @@
+artifact_location: file:///C:/Users/omers/OneDrive/Desktop/Cryptocurrency/backend/mlruns/216593457690870332
+creation_time: 1786482038802
+effective_trace_archival_retention: null
+experiment_id: '216593457690870332'
+last_update_time: 1786482038802
+lifecycle_stage: active
+name: Crypto_Time_Series_Forecasting
+trace_location: null
+workspace: default
