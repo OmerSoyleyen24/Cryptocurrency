@@ -1,0 +1,15 @@
+# Node.js imajı
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Bağımlılıkları yükle
+COPY package*.json ./
+RUN npm install
+
+# Kaynak kodları kopyala
+COPY . .
+
+# React uygulamasını başlat
+EXPOSE 5173
+CMD ["npm", "start"]
