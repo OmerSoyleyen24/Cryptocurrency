@@ -172,7 +172,7 @@ function MyCryptocurrency() {
             style={{ flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '13px' }}
             value={ragQuery}
             onChange={(e) => setRagQuery(e.target.value)}
-            placeholder="Ask about crypto news or trends (e.g., BTC halving effects)..."
+            placeholder="Enter a crypto symbol for crypto information (e.g., BTC, ETH...)"
           />
           <button
             style={{ backgroundColor: '#7c3aed', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px' }}

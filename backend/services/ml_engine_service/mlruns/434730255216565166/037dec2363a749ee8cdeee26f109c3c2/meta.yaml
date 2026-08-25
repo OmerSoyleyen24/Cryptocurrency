@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/omers/OneDrive/Desktop/Cryptocurrency/backend/services/ml_engine_service/mlruns/434730255216565166/037dec2363a749ee8cdeee26f109c3c2/artifacts
+end_time: 1787690705877
+entry_point_name: ''
+experiment_id: '434730255216565166'
+lifecycle_stage: active
+run_id: 037dec2363a749ee8cdeee26f109c3c2
+run_name: Pred_BTC-USDT
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1787690705813
+status: 3
+tags: []
+user_id: omers
